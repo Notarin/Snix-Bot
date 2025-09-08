@@ -8,7 +8,7 @@ pub(crate) fn convert_expression_to_string(expression: EvaluationResult) -> Opti
         Some(Value::Integer(integer)) => Some(integer.to_string()),
         Some(Value::Float(float)) => Some(float.to_string()),
         Some(Value::String(string)) => Some(string.to_string()),
-        Some(Value::Path(_path)) => todo!("Convert the path data type to a String"),
+        Some(Value::Path(path)) => Some(path.as_path().to_str()?.to_string()),
         Some(Value::Attrs(_attrs)) => todo!("Convert the attrs data type to a String"),
         Some(Value::List(_list)) => todo!("Convert the list data type to a String"),
         Some(Value::Closure(_closure)) => todo!("Convert the closure data type to a String"),
