@@ -1,7 +1,5 @@
 mod commands;
 mod events;
-mod snix;
-
 use clap::Parser;
 use log::{LevelFilter, error, info, trace};
 use poise::FrameworkOptions;

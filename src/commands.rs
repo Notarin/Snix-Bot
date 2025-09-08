@@ -1,5 +1,4 @@
 use crate::Error;
-use crate::snix::convert_expression_to_string;
 use poise::command;
 use snix_eval::EvaluationResult;
 
@@ -15,10 +14,12 @@ pub(crate) async fn eval(
     #[description = "Expression"] expression: String,
 ) -> Result<(), Error> {
     let response: String = {
-        let evaluation = snix_eval::Evaluation::builder_pure().build();
+        let mode = snix_eval::EvalMode::Strict;
+        let builder = snix_eval::Evaluation::builder_pure().mode(mode);
+        let evaluation = builder.build();
         let result: EvaluationResult =
             snix_eval::Evaluation::evaluate(evaluation, expression, None);
-        convert_expression_to_string(result).unwrap()
+        format!("{}", result.value.unwrap())
     };
 
     let formatted_response: String = format!("```\n{}\n```", response);
