@@ -1,0 +1,7 @@
+[dependencies]
+
+[package]
+name = "Nix"
+version = "0.0.0"
+authors = ["Notarin Steele"]
+edition = "2024"
