@@ -7,6 +7,7 @@ use poise::FrameworkOptions;
 use poise::serenity_prelude::Client;
 use poise::{Command, Framework, serenity_prelude as serenity};
 use serenity::prelude::*;
+use std::error;
 
 #[derive(Parser)]
 #[command(version, about, author)]
@@ -78,7 +79,7 @@ async fn build_client(token: &String) -> Client {
 
 fn build_framework() -> Framework<(), Error> {
     trace!("Collecting commands.");
-    let commands: Vec<Command<(), Error>> = vec![commands::ping()];
+    let commands: Vec<Command<(), Error>> = vec![commands::ping(), commands::eval()];
     trace!("Building bot framework.");
     let framework_options = FrameworkOptions {
         commands,
