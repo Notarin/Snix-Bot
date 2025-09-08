@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "Nix"
+name = "Snix-Bot"
 version = "0.0.0"
 dependencies = [
  "clap",
