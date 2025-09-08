@@ -34,25 +34,13 @@
                 pkg-config
               ];
               meta = {
-                mainProgram = "Nix";
+                mainProgram = "Snix-Bot";
               };
             };
             default = Nix;
           };
           devShells.${system}.default = craneLib.devShell {
-            shellHook = ''
-              oldHookDir=$(git config --local core.hooksPath)
-
-              if [ "$oldHookDir" != "$PWD/.githooks" ]; then
-                read -rp "Set git hooks to $PWD/.githooks? (y/n) " answer
-                if [ "$answer" = "y" ]; then
-                  git config core.hooksPath "$PWD"/.githooks
-                  echo "Set git hooks to $PWD/.githooks"
-                else
-                  echo "Skipping git hooks setup"
-                fi
-              fi
-            '';
+            inherit (utils) shellHook;
             packages = with pkgs; [
               pkg-config
             ];
