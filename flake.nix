@@ -26,10 +26,15 @@
             treefmt-config = treefmt-nix.lib.evalModule pkgs "${utilsDir}/treefmt.nix";
             flakePath = ./.;
           };
+
+          src = ./.;
+          cargoArtifacts = craneLib.buildDepsOnly {
+            inherit src;
+          };
         in {
           packages.${system} = rec {
             Nix = craneLib.buildPackage {
-              src = ./.;
+              inherit src;
               nativeBuildInputs = with pkgs; [
                 pkg-config
               ];
@@ -46,7 +51,13 @@
             ];
           };
           formatter.${system} = utils.treefmt-config.config.build.wrapper;
-          checks.${system}.formatting = utils.treefmt-config.config.build.check self;
+          checks.${system} = {
+            formatting = utils.treefmt-config.config.build.check self;
+            clippy = craneLib.cargoClippy {
+              inherit cargoArtifacts src;
+              cargoClippyExtraArgs = "-- --deny warnings";
+            };
+          };
         }
       )
       [
