@@ -22,7 +22,10 @@ pub(crate) async fn eval(
         format!("{}", result.value.unwrap())
     };
 
-    let formatted_response: String = format!("```\n{}\n```", response);
-    ctx.say(formatted_response).await?;
+    let fmt_config = alejandra::config::Config::default();
+    let formatted = alejandra::format::in_memory(String::from(""), response, fmt_config).1;
+
+    let code_block_response: String = format!("```nix\n{}\n```", formatted);
+    ctx.say(code_block_response).await?;
     Ok(())
 }
