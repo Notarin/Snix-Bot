@@ -1,6 +1,7 @@
 use crate::Error;
+use crate::snix::convert_expression_to_string;
 use poise::command;
-use snix_eval::Value;
+use snix_eval::EvaluationResult;
 
 #[command(slash_command)]
 pub(crate) async fn ping(ctx: poise::Context<'_, (), Error>) -> Result<(), Error> {
@@ -13,22 +14,14 @@ pub(crate) async fn eval(
     ctx: poise::Context<'_, (), Error>,
     #[description = "Expression"] expression: String,
 ) -> Result<(), Error> {
-    let response = {
+    let response: String = {
         let evaluation = snix_eval::Evaluation::builder_pure().build();
-        let result = snix_eval::Evaluation::evaluate(evaluation, expression, None);
-
-        match result.value {
-            None => "Null!".to_string(),
-            Some(Value::Null) => "Null!".to_string(),
-            Some(Value::Bool(b)) => b.to_string(),
-            Some(Value::Integer(i)) => i.to_string(),
-            Some(Value::Float(f)) => f.to_string(),
-            Some(Value::String(s)) => s.to_string(),
-            _ => "<unhandled type>".to_string(),
-        }
-        // result is dropped here
+        let result: EvaluationResult =
+            snix_eval::Evaluation::evaluate(evaluation, expression, None);
+        convert_expression_to_string(result).unwrap()
     };
 
-    ctx.say(response).await?;
+    let formatted_response: String = format!("```\n{}\n```", response);
+    ctx.say(formatted_response).await?;
     Ok(())
 }
