@@ -9,6 +9,7 @@ dependencies = [
  "alejandra",
  "clap",
  "colog",
+ "lazy_static",
  "log",
  "poise",
  "snix-eval",
