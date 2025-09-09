@@ -15,7 +15,7 @@ lazy_static! {
         );
         dir
     };
-    static ref NixpkgsPath: &'static str = {
+    pub(crate) static ref NixpkgsPath: &'static str = {
         NixpkgsDir
             .path()
             .to_str()
