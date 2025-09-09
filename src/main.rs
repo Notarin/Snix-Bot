@@ -4,6 +4,9 @@ mod events;
 
 use args::ARGS;
 use log::{error, info, trace};
+mod nixpkgs;
+
+use crate::nixpkgs::NixpkgsRepo;
 use poise::FrameworkOptions;
 use poise::serenity_prelude::Client;
 use poise::{Command, Framework, serenity_prelude as serenity};
@@ -19,6 +22,12 @@ async fn main() {
     // This notice should rarely matter, but there are instances in early runtime where it may.
     // During CLI args evaluation is a good example.
     args::init_logging();
+
+    // Let's go ahead and spawn a thread to clone nixpkgs, it will take a minute.
+    tokio::spawn(async move {
+        let nixpkgs = NixpkgsRepo.lock().await;
+        info!("Nixpkgs is ready at: {}", nixpkgs.path().display());
+    });
 
     let mut client: Client = build_client(&ARGS.token).await;
     info!("Starting client.");

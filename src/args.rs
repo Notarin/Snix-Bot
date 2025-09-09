@@ -28,6 +28,22 @@ pub(crate) struct Args {
         help = "Logging level for all crates other than the bot itself."
     )]
     pub(crate) dependency_log_level: LevelFilter,
+    #[clap(
+        short,
+        long,
+        env,
+        default_value = "https://github.com/NixOS/nixpkgs",
+        help = "URL for the nixpkgs repo to clone."
+    )]
+    pub(crate) nixpkgs_url: String,
+    #[clap(
+        short,
+        long,
+        env,
+        default_value = "1",
+        help = "Clone depth for the nixpkgs repo."
+    )]
+    pub(crate) clone_depth: u32,
 }
 
 lazy_static! {

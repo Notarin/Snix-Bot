@@ -28,16 +28,19 @@
           };
 
           src = ./.;
+          dependencies = with pkgs; [
+            pkg-config
+            openssl
+          ];
           cargoArtifacts = craneLib.buildDepsOnly {
+            nativeBuildInputs = dependencies;
             inherit src;
           };
         in {
           packages.${system} = rec {
             Nix = craneLib.buildPackage {
               inherit src;
-              nativeBuildInputs = with pkgs; [
-                pkg-config
-              ];
+              nativeBuildInputs = dependencies;
               meta = {
                 mainProgram = "Snix-Bot";
               };
@@ -46,15 +49,14 @@
           };
           devShells.${system}.default = craneLib.devShell {
             inherit (utils) shellHook;
-            packages = with pkgs; [
-              pkg-config
-            ];
+            packages = dependencies;
           };
           formatter.${system} = utils.treefmt-config.config.build.wrapper;
           checks.${system} = {
             formatting = utils.treefmt-config.config.build.check self;
             clippy = craneLib.cargoClippy {
               inherit cargoArtifacts src;
+              nativeBuildInputs = dependencies;
               cargoClippyExtraArgs = "-- --deny warnings";
             };
           };
