@@ -21,7 +21,12 @@ pub(crate) async fn eval(
         let evaluation = builder.build();
         let result: EvaluationResult =
             snix_eval::Evaluation::evaluate(evaluation, expression, None);
-        format!("{}", result.value.unwrap())
+        format!(
+            "{}",
+            result
+                .value
+                .ok_or("There was an error in the nix evaluation.")?
+        )
     };
 
     let fmt_config = alejandra::config::Config::default();
@@ -39,7 +44,7 @@ pub(crate) async fn maintainer(
 ) -> Result<(), Error> {
     let nixpkgs_repo = NixpkgsRepo
         .try_lock()
-        .map_err(|_| "The nixpkgs repo is not available. Try again later.")?;
+        .map_err(|_| "The nixpkgs repo is currently in use elsewhere. Try again later.")?;
     let result: Result<String, String> = nixpkgs_repo
         .as_ref()
         .map(|nixpkgs| {
@@ -56,7 +61,7 @@ pub(crate) async fn maintainer(
             );
             format!("{}", result.value.unwrap())
         })
-        .ok_or_else(|| String::from("The nixpkgs repo is not available. Try again later."));
+        .ok_or_else(|| String::from("The nixpkgs repo has not been set up. Try again later."));
     ctx.say(result?).await?;
     Ok(())
 }

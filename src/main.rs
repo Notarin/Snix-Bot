@@ -7,8 +7,8 @@ use log::{debug, error, info, trace};
 mod nixpkgs;
 
 use crate::nixpkgs::{NixpkgsRepo, nixpkgs_repo};
-use poise::FrameworkOptions;
-use poise::serenity_prelude::Client;
+use poise::serenity_prelude::{Client, Color, CreateEmbed};
+use poise::{BoxFuture, CreateReply, FrameworkError, FrameworkOptions};
 use poise::{Command, Framework, serenity_prelude as serenity};
 use serenity::prelude::*;
 use std::error;
@@ -67,6 +67,7 @@ fn build_framework() -> Framework<(), Error> {
         event_handler: |ctx, event, framework, _data| {
             Box::pin(events::event_handler(ctx, event, framework))
         },
+        on_error: error,
         ..Default::default()
     };
     let framework: Framework<(), Error> = Framework::builder()
@@ -79,6 +80,25 @@ fn build_framework() -> Framework<(), Error> {
         })
         .build();
     framework
+}
+
+fn error(error: FrameworkError<(), Error>) -> BoxFuture<()> {
+    Box::pin(async move {
+        match error {
+            FrameworkError::Command { error, ctx, .. } => {
+                let embed: CreateEmbed = CreateEmbed::new()
+                    .title(String::from("Error"))
+                    .description(error.to_string())
+                    .color(Color::from((255, 0, 0)));
+                let reply: CreateReply = CreateReply::default()
+                    .embed(embed)
+                    .ephemeral(true)
+                    .reply(true);
+                ctx.send(reply).await.unwrap();
+            }
+            error => poise::builtins::on_error(error).await.unwrap(),
+        }
+    })
 }
 
 pub(crate) fn init_logging() {
