@@ -1,7 +1,8 @@
 use crate::Error;
 use crate::nixpkgs::NixpkgsRepo;
-use poise::command;
-use snix_eval::EvaluationResult;
+use poise::serenity_prelude::{Color, CreateEmbed};
+use poise::{CreateReply, command};
+use snix_eval::{EvaluationResult, Value};
 use std::path::PathBuf;
 
 #[command(slash_command)]
@@ -45,7 +46,7 @@ pub(crate) async fn maintainer(
     let nixpkgs_repo = NixpkgsRepo
         .try_lock()
         .map_err(|_| "The nixpkgs repo is currently in use elsewhere. Try again later.")?;
-    let result: Result<String, String> = nixpkgs_repo
+    let reply: CreateReply = nixpkgs_repo
         .as_ref()
         .map(|nixpkgs| {
             let nixpkgs_root = nixpkgs.path().parent().unwrap();
@@ -59,9 +60,38 @@ pub(crate) async fn maintainer(
                 maintainer_expression,
                 Some(PathBuf::from(nixpkgs_root)),
             );
-            format!("{}", result.value.unwrap())
+            let maintainer = result
+                .value
+                .unwrap()
+                .to_attrs()
+                .map_err(|_| "Expression wasn't an attrset!")?;
+
+            let mut embed: CreateEmbed = CreateEmbed::new()
+                .title("Maintainer Info")
+                .color(Color::from((35, 127, 235)));
+            embed = add_embed_field(embed, "Name", maintainer.select("name"));
+            embed = add_embed_field(embed, "Email", maintainer.select("email"));
+            embed = add_embed_field(embed, "GitHub Username", maintainer.select("github"));
+            embed = add_embed_field(embed, "GitHub ID", maintainer.select("githubId"));
+            embed = add_embed_field(embed, "Matrix", maintainer.select("matrix"));
+
+            Ok::<CreateReply, Error>(CreateReply::default().embed(embed).reply(true))
         })
-        .ok_or_else(|| String::from("The nixpkgs repo has not been set up. Try again later."));
-    ctx.say(result?).await?;
+        .transpose()?
+        .ok_or("The nixpkgs repo has not been set up. Try again later.")?;
+
+    ctx.send(reply).await?;
     Ok(())
+}
+
+fn add_embed_field(mut embed: CreateEmbed, name: &str, value: Option<&Value>) -> CreateEmbed {
+    if let Some(value) = value {
+        embed = embed.field(name, format_field_value(format!("{}", value)), false);
+    }
+    embed
+}
+
+fn format_field_value(string: String) -> String {
+    let inner = &string[1..string.len() - 1];
+    format!("`{}`", inner)
 }
