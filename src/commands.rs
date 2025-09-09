@@ -92,6 +92,14 @@ fn add_embed_field(mut embed: CreateEmbed, name: &str, value: Option<&Value>) ->
 }
 
 fn format_field_value(string: String) -> String {
-    let inner = &string[1..string.len() - 1];
+    let mut inner: &str = &string;
+
+    if inner.starts_with('"') {
+        inner = &inner[1..];
+    }
+    if inner.ends_with('"') {
+        inner = &inner[..inner.len() - 1];
+    }
+
     format!("`{}`", inner)
 }
