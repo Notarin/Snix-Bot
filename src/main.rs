@@ -3,7 +3,7 @@ mod commands;
 mod events;
 
 use args::ARGS;
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 mod nixpkgs;
 
 use crate::nixpkgs::NixpkgsRepo;
@@ -21,7 +21,7 @@ async fn main() {
     // do not expect any form of logging to work.
     // This notice should rarely matter, but there are instances in early runtime where it may.
     // During CLI args evaluation is a good example.
-    args::init_logging();
+    init_logging();
 
     // Let's go ahead and spawn a thread to clone nixpkgs, it will take a minute.
     tokio::spawn(async move {
@@ -76,4 +76,14 @@ fn build_framework() -> Framework<(), Error> {
         })
         .build();
     framework
+}
+
+pub(crate) fn init_logging() {
+    // Before now, logging is unavailable, therefore we may not log yet.
+    colog::default_builder()
+        .filter(None, ARGS.dependency_log_level)
+        .filter(Some(env!("CARGO_CRATE_NAME")), ARGS.log_level)
+        .init();
+    // Now, we may begin logging.
+    debug!("Logging is ready!");
 }
