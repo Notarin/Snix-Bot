@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 lazy_static! {
     pub(crate) static ref NixpkgsPath: PathBuf = temp_dir().join(PathBuf::from("nixpkgs"));
-    pub(crate) static ref NixpkgsRepo: Mutex<Repository> = Mutex::new(nixpkgs_repo());
+    pub(crate) static ref NixpkgsRepo: Mutex<Option<Repository>> = Mutex::new(None);
 }
 
 pub(crate) fn nixpkgs_repo() -> Repository {

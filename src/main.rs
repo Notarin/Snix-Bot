@@ -6,7 +6,7 @@ use args::ARGS;
 use log::{debug, error, info, trace};
 mod nixpkgs;
 
-use crate::nixpkgs::NixpkgsRepo;
+use crate::nixpkgs::{NixpkgsRepo, nixpkgs_repo};
 use poise::FrameworkOptions;
 use poise::serenity_prelude::Client;
 use poise::{Command, Framework, serenity_prelude as serenity};
@@ -25,8 +25,10 @@ async fn main() {
 
     // Let's go ahead and spawn a thread to clone nixpkgs, it will take a minute.
     tokio::spawn(async move {
-        let nixpkgs = NixpkgsRepo.lock().await;
-        info!("Nixpkgs is ready at: {}", nixpkgs.path().display());
+        let mut nixpkgs = NixpkgsRepo.lock().await;
+        let repository = nixpkgs_repo();
+        info!("Nixpkgs is ready at: {}", repository.path().display());
+        *nixpkgs = Some(repository);
     });
 
     let mut client: Client = build_client(&ARGS.token).await;
