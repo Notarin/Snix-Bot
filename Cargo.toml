@@ -9,6 +9,7 @@ alejandra = {git = "https://github.com/kamadorueda/alejandra.git", version = "4.
 tempfile = "3.21.0"
 lazy_static = "1.5.0"
 git2 = "0.20.2"
+openapi-github = "0.1.0"
 
 [package]
 name = "Snix-Bot"
