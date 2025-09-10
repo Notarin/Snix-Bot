@@ -210,3 +210,50 @@ fn format_field_value(string: String) -> String {
 
     format!("`{}`", inner)
 }
+
+#[command(slash_command, owners_only)]
+pub(crate) async fn nixpkgs_pull(ctx: poise::Context<'_, (), Error>) -> Result<(), Error> {
+    // This can be expensive, so defer the interaction.
+    ctx.defer().await?;
+    let guard = NixpkgsRepo.lock().await;
+
+    guard
+        .as_ref()
+        .map(|repo| {
+            // fetch only tip
+            let mut remote = repo
+                .find_remote("origin")
+                .or(Err("Could not find the upstream remote!"))?;
+            let mut fetch_options = git2::FetchOptions::new();
+            fetch_options.depth(1);
+            remote
+                .fetch(&["master"], Some(&mut fetch_options), None)
+                .or(Err("The master branch is gone yo."))?;
+
+            let fetch_head = repo
+                .find_reference("FETCH_HEAD")
+                .or(Err("The commit I just fetched fucking *vanished*"))?;
+            let target = fetch_head
+                .target()
+                .ok_or_else(|| Error::from("No FETCH_HEAD target"))
+                .or(Err("Couldn't target the fetched head."))?;
+
+            // hard reset local branch to it
+            let mut reference = repo.find_reference("refs/heads/master").or(Err(
+                "Can't find the local master branch I plan to apply the work to!",
+            ))?;
+            reference
+                .set_target(target, "Reset to latest upstream")
+                .or(Err("Set target operation on the reflog shit itself..."))?;
+            repo.set_head("refs/heads/master")
+                .or(Err("Setting the new head shat itself."))?;
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+                .or(Err("Moving the local checkout failed."))?;
+
+            Ok::<(), String>(())
+        })
+        .ok_or("Nixpkgs repo is not available!")??;
+
+    ctx.say("Nixpkgs updated to upstream tip.").await?;
+    Ok(())
+}

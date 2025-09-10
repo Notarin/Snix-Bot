@@ -59,8 +59,12 @@ async fn build_client(token: &String) -> Client {
 
 fn build_framework() -> Framework<(), Error> {
     trace!("Collecting commands.");
-    let commands: Vec<Command<(), Error>> =
-        vec![commands::ping(), commands::eval(), commands::maintainer()];
+    let commands: Vec<Command<(), Error>> = vec![
+        commands::ping(),
+        commands::eval(),
+        commands::maintainer(),
+        commands::nixpkgs_pull(),
+    ];
     trace!("Building bot framework.");
     let framework_options = FrameworkOptions {
         commands,
