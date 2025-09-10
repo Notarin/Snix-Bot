@@ -48,7 +48,7 @@ async fn main() {
 async fn build_client(token: &String) -> Client {
     let framework: Framework<(), Error> = build_framework();
 
-    let intents: GatewayIntents = GatewayIntents::all();
+    let intents: GatewayIntents = GatewayIntents::empty();
     trace!("Building client.");
     let client: Client = Client::builder(token, intents)
         .framework(framework)
