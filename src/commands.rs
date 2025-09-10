@@ -13,7 +13,11 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-#[command(slash_command)]
+#[command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub(crate) async fn ping(ctx: Context<'_, (), Error>) -> Result<(), Error> {
     ctx.say("Mraowww!").await?;
     Ok(())
@@ -89,7 +93,11 @@ impl EvalIO for NixpkgsIo {
         std::env::var_os(key)
     }
 }
-#[command(slash_command)]
+#[command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub(crate) async fn eval(
     ctx: Context<'_, (), Error>,
     #[description = "Expression"] expression: String,
@@ -97,7 +105,12 @@ pub(crate) async fn eval(
     eval_discord_expression(ctx, expression).await?
 }
 
-#[command(context_menu_command = "Evaluate Nix code block", slash_command)]
+#[command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel",
+    context_menu_command = "Evaluate Nix code block"
+)]
 pub(crate) async fn eval_code_block(
     ctx: Context<'_, (), Error>,
     #[description = "Message"] message: Message,
@@ -151,7 +164,11 @@ async fn eval_discord_expression(
     Ok(Ok(()))
 }
 
-#[command(slash_command)]
+#[command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub(crate) async fn maintainer(
     ctx: poise::Context<'_, (), Error>,
     #[description = "Maintainer Name/Handle"] name: String,
@@ -240,7 +257,12 @@ fn format_field_value(string: String) -> String {
     format!("`{}`", inner)
 }
 
-#[command(slash_command, owners_only)]
+#[command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel",
+    owners_only
+)]
 pub(crate) async fn nixpkgs_pull(ctx: poise::Context<'_, (), Error>) -> Result<(), Error> {
     // This can be expensive, so defer the interaction.
     ctx.defer().await?;
