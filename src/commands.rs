@@ -4,8 +4,8 @@ use bytes::Bytes;
 use openapi_github::apis::configuration::Configuration;
 use openapi_github::apis::users_api::users_slash_get_by_username;
 use openapi_github::models::UsersGetAuthenticated200Response;
-use poise::serenity_prelude::{Color, CreateEmbed};
-use poise::{CreateReply, command};
+use poise::serenity_prelude::{Color, CreateEmbed, Message};
+use poise::{Context, CreateReply, command};
 use snix_eval::{EvalIO, EvaluationResult, FileType, Value};
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 #[command(slash_command)]
-pub(crate) async fn ping(ctx: poise::Context<'_, (), Error>) -> Result<(), Error> {
+pub(crate) async fn ping(ctx: Context<'_, (), Error>) -> Result<(), Error> {
     ctx.say("Mraowww!").await?;
     Ok(())
 }
@@ -91,9 +91,38 @@ impl EvalIO for NixpkgsIo {
 }
 #[command(slash_command)]
 pub(crate) async fn eval(
-    ctx: poise::Context<'_, (), Error>,
+    ctx: Context<'_, (), Error>,
     #[description = "Expression"] expression: String,
 ) -> Result<(), Error> {
+    eval_discord_expression(ctx, expression).await?
+}
+
+#[command(context_menu_command = "Evaluate Nix code block", slash_command)]
+pub(crate) async fn eval_code_block(
+    ctx: Context<'_, (), Error>,
+    #[description = "Message"] message: Message,
+) -> Result<(), Error> {
+    // Find the start of the Nix code block (`nix\n`).
+    let expression = message
+        .content
+        .split_once("```nix\n")
+        .ok_or("Couldn't find Nix code block!")?
+        .1;
+
+    // Find the end of the code block (`\n````).
+    let expression = expression
+        .rsplit_once("```")
+        .ok_or("Couldn't find the end of the Nix code block!")?
+        .0;
+
+    // Call the original `eval` function with the extracted expression.
+    eval_discord_expression(ctx, expression.to_string()).await?
+}
+
+async fn eval_discord_expression(
+    ctx: Context<'_, (), Error>,
+    expression: String,
+) -> Result<Result<(), Error>, Error> {
     let response: String = {
         let mode = snix_eval::EvalMode::Strict;
         let builder = snix_eval::Evaluation::builder_pure()
@@ -119,7 +148,7 @@ pub(crate) async fn eval(
 
     let code_block_response: String = format!("```nix\n{}\n```", formatted);
     ctx.say(code_block_response).await?;
-    Ok(())
+    Ok(Ok(()))
 }
 
 #[command(slash_command)]
