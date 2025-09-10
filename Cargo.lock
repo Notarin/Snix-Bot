@@ -7,6 +7,7 @@ name = "Snix-Bot"
 version = "0.0.0"
 dependencies = [
  "alejandra",
+ "bytes",
  "clap",
  "colog",
  "git2",
