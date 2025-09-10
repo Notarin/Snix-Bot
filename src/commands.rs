@@ -4,7 +4,9 @@ use bytes::Bytes;
 use openapi_github::apis::configuration::Configuration;
 use openapi_github::apis::users_api::users_slash_get_by_username;
 use openapi_github::models::UsersGetAuthenticated200Response;
-use poise::serenity_prelude::{Color, CreateEmbed, Message};
+use poise::futures_util::Stream;
+use poise::futures_util::StreamExt;
+use poise::serenity_prelude::{Color, CreateEmbed, Message, futures};
 use poise::{Context, CreateReply, command};
 use snix_eval::{EvalIO, EvaluationResult, FileType, Value};
 use std::ffi::{OsStr, OsString};
@@ -164,14 +166,55 @@ async fn eval_discord_expression(
     Ok(Ok(()))
 }
 
+async fn autocomplete_maintainer<'a>(
+    _ctx: Context<'_, (), Error>,
+    partial: &'a str,
+) -> impl Stream<Item = String> + 'a {
+    let mode = snix_eval::EvalMode::Strict;
+    let builder = snix_eval::Evaluation::builder_pure()
+        .mode(mode)
+        .enable_import()
+        .enable_impure(Some(Box::new(NixpkgsIo)));
+    let evaluation = builder.build();
+    let result: EvaluationResult = snix_eval::Evaluation::evaluate(
+        evaluation,
+        "(import ./lib).maintainers",
+        Some(NixpkgsPath.as_path().into()),
+    );
+
+    let maintainers: Vec<String> = match result.value {
+        Some(Value::Attrs(attrs)) => attrs
+            .keys()
+            .map(|maintainer| {
+                let mut maintainer: &str = &maintainer.to_string();
+
+                if maintainer.starts_with('"') {
+                    maintainer = &maintainer[1..];
+                }
+                if maintainer.ends_with('"') {
+                    maintainer = &maintainer[..maintainer.len() - 1];
+                }
+                maintainer.to_string()
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+
+    futures::stream::iter(maintainers)
+        .filter(move |maintainer: &String| futures::future::ready(maintainer.starts_with(partial)))
+        .map(|name| name.to_string())
+}
+
 #[command(
     slash_command,
     install_context = "Guild|User",
     interaction_context = "Guild|BotDm|PrivateChannel"
 )]
 pub(crate) async fn maintainer(
-    ctx: poise::Context<'_, (), Error>,
-    #[description = "Maintainer Name/Handle"] name: String,
+    ctx: Context<'_, (), Error>,
+    #[autocomplete = "autocomplete_maintainer"]
+    #[description = "Maintainer Name/Handle"]
+    name: String,
 ) -> Result<(), Error> {
     let nixpkgs_repo = NixpkgsRepo
         .try_lock()
