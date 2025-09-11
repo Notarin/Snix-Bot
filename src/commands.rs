@@ -8,9 +8,10 @@ use poise::futures_util::Stream;
 use poise::futures_util::StreamExt;
 use poise::serenity_prelude::{Color, CreateEmbed, Message, futures};
 use poise::{Context, CreateReply, command};
-use snix_eval::{EvalIO, EvaluationResult, FileType, Value};
+use snix_eval::{EvalIO, Evaluation, EvaluationResult, FileType, Value};
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
+use std::iter::Map;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -145,17 +146,9 @@ async fn eval_discord_expression(
             .enable_import()
             .enable_impure(Some(Box::new(NixpkgsIo)));
         let evaluation = builder.build();
-        let result: EvaluationResult = snix_eval::Evaluation::evaluate(
-            evaluation,
-            expression,
-            Some(NixpkgsPath.as_path().into()),
-        );
-        format!(
-            "{}",
-            result
-                .value
-                .ok_or("There was an error in the nix evaluation.")?
-        )
+        let result: EvaluationResult =
+            Evaluation::evaluate(evaluation, expression, Some(NixpkgsPath.as_path().into()));
+        format!("{}", check_value_for_errors(result)?)
     };
 
     let fmt_config = alejandra::config::Config::default();
@@ -164,6 +157,21 @@ async fn eval_discord_expression(
     let code_block_response: String = format!("```nix\n{}\n```", formatted);
     ctx.say(code_block_response).await?;
     Ok(Ok(()))
+}
+
+fn check_value_for_errors(wrapped_result: EvaluationResult) -> Result<Value, Error> {
+    match (wrapped_result.value, wrapped_result.errors.as_slice()) {
+        (Some(result), _) => Ok(result),
+        (None, errors @ [_, ..]) => {
+            let serialized_errors: Vec<String> =
+                Map::collect(errors.iter().map(|error| error.fancy_format_str()));
+            let mono_error = serialized_errors.join("\n");
+            Err(Error::from(mono_error))
+        }
+        (None, []) => Err(Error::from(
+            "There was no result nor error! This shouldn't really happen.",
+        )),
+    }
 }
 
 async fn autocomplete_maintainer<'a>(
@@ -176,14 +184,14 @@ async fn autocomplete_maintainer<'a>(
         .enable_import()
         .enable_impure(Some(Box::new(NixpkgsIo)));
     let evaluation = builder.build();
-    let result: EvaluationResult = snix_eval::Evaluation::evaluate(
+    let result: EvaluationResult = Evaluation::evaluate(
         evaluation,
         "(import ./lib).maintainers",
         Some(NixpkgsPath.as_path().into()),
     );
 
-    let maintainers: Vec<String> = match result.value {
-        Some(Value::Attrs(attrs)) => attrs
+    let maintainers: Vec<String> = match check_value_for_errors(result) {
+        Ok(Value::Attrs(attrs)) => attrs
             .keys()
             .map(|maintainer| {
                 let mut maintainer: &str = &maintainer.to_string();
@@ -232,14 +240,12 @@ pub(crate) async fn maintainer(
                 .mode(mode)
                 .enable_impure(Some(Box::new(NixpkgsIo)));
             let evaluation = builder.build();
-            let result: EvaluationResult = snix_eval::Evaluation::evaluate(
+            let result: EvaluationResult = Evaluation::evaluate(
                 evaluation,
                 maintainer_expression,
                 Some(PathBuf::from(nixpkgs_root)),
             );
-            let maintainer = result
-                .value
-                .unwrap()
+            let maintainer = check_value_for_errors(result)?
                 .to_attrs()
                 .map_err(|_| "Expression wasn't an attrset!")?;
 
