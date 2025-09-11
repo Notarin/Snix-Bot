@@ -109,7 +109,6 @@ pub(crate) async fn eval(
 }
 
 #[command(
-    slash_command,
     install_context = "Guild|User",
     interaction_context = "Guild|BotDm|PrivateChannel",
     context_menu_command = "Evaluate Nix code block"
