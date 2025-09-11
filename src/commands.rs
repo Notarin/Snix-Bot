@@ -140,46 +140,51 @@ async fn eval_discord_expression(
     expression: String,
 ) -> Result<Result<(), Error>, Error> {
     let response: String = {
-        let mode = snix_eval::EvalMode::Strict;
-        // Making our fake derivation builder
-        let fake_derivation_builder = Evaluation::evaluate(
-            snix_eval::Evaluation::builder_pure()
-                .mode(mode)
-                .enable_import()
-                .enable_impure(Some(Box::new(NixpkgsIo)))
-                .build(),
-            // Do the absolue least possible to get by
-            "arg: arg // {out={type=null;outputName=null;};}",
-            Some(NixpkgsPath.as_path().into()),
-        )
-        .value
-        .unwrap();
-        // Making our fake placeholder
-        let fake_placeholder = Evaluation::evaluate(
-            snix_eval::Evaluation::builder_pure()
-                .mode(mode)
-                .enable_import()
-                .enable_impure(Some(Box::new(NixpkgsIo)))
-                .build(),
-            // Do fuckall with any arguments
-            "arg: arg",
-            Some(NixpkgsPath.as_path().into()),
-        )
-        .value
-        .unwrap();
+        let output: Result<String, Error> = tokio::task::spawn_blocking(move || {
+            let mode = snix_eval::EvalMode::Strict;
+            // Making our fake derivation builder
+            let fake_derivation_builder = Evaluation::evaluate(
+                snix_eval::Evaluation::builder_pure()
+                    .mode(mode)
+                    .enable_import()
+                    .enable_impure(Some(Box::new(NixpkgsIo)))
+                    .build(),
+                // Do the absolue least possible to get by
+                "arg: arg // {out={type=null;outputName=null;};}",
+                Some(NixpkgsPath.as_path().into()),
+            )
+            .value
+            .unwrap();
+            // Making our fake placeholder
+            let fake_placeholder = Evaluation::evaluate(
+                snix_eval::Evaluation::builder_pure()
+                    .mode(mode)
+                    .enable_import()
+                    .enable_impure(Some(Box::new(NixpkgsIo)))
+                    .build(),
+                // Do fuckall with any arguments
+                "arg: arg",
+                Some(NixpkgsPath.as_path().into()),
+            )
+            .value
+            .unwrap();
 
-        let builder = snix_eval::Evaluation::builder_pure()
-            .mode(mode)
-            .enable_import()
-            .add_builtins(vec![
-                ("derivation", fake_derivation_builder),
-                ("placeholder", fake_placeholder),
-            ])
-            .enable_impure(Some(Box::new(NixpkgsIo)));
-        let evaluation = builder.build();
-        let result: EvaluationResult =
-            Evaluation::evaluate(evaluation, expression, Some(NixpkgsPath.as_path().into()));
-        format!("{}", check_value_for_errors(result)?)
+            let builder = snix_eval::Evaluation::builder_pure()
+                .mode(mode)
+                .enable_import()
+                .add_builtins(vec![
+                    ("derivation", fake_derivation_builder),
+                    ("placeholder", fake_placeholder),
+                ])
+                .enable_impure(Some(Box::new(NixpkgsIo)));
+            let evaluation = builder.build();
+            let result: EvaluationResult =
+                Evaluation::evaluate(evaluation, expression, Some(NixpkgsPath.as_path().into()));
+            Ok(format!("{}", check_value_for_errors(result)?).clone())
+        })
+        .await
+        .unwrap();
+        output?
     };
 
     let fmt_config = alejandra::config::Config::default();
