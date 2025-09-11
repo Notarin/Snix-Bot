@@ -165,7 +165,7 @@ fn check_value_for_errors(wrapped_result: EvaluationResult) -> Result<Value, Err
         (None, errors @ [_, ..]) => {
             let serialized_errors: Vec<String> =
                 Map::collect(errors.iter().map(|error| error.fancy_format_str()));
-            let mono_error = serialized_errors.join("\n");
+            let mono_error = format!("```\n{}\n```", serialized_errors.join("\n"));
             Err(Error::from(mono_error))
         }
         (None, []) => Err(Error::from(
