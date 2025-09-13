@@ -11,6 +11,7 @@ git2 = "0.20.2"
 openapi-github = "0.1.0"
 bytes = "1.10.1"
 poise = {git = "https://github.com/serenity-rs/poise.git"}
+regex = "1.11.2"
 
 [package]
 name = "Snix-Bot"

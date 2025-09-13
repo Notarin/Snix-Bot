@@ -15,6 +15,7 @@ dependencies = [
  "log",
  "openapi-github",
  "poise",
+ "regex",
  "snix-eval",
  "tempfile",
  "tokio",
