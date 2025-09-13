@@ -61,10 +61,10 @@ fn build_framework() -> Framework<(), Error> {
     trace!("Collecting commands.");
     let commands: Vec<Command<(), Error>> = vec![
         commands::ping(),
-        commands::eval(),
-        commands::maintainer(),
+        commands::snix::repl::eval(),
+        commands::snix::maintainer::maintainer(),
         commands::nixpkgs_pull(),
-        commands::eval_code_block(),
+        commands::snix::repl::eval_code_block(),
     ];
     trace!("Building bot framework.");
     let framework_options = FrameworkOptions {

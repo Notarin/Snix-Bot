@@ -26,7 +26,7 @@ pub(crate) fn nixpkgs_repo() -> Repository {
     }
 }
 
-pub fn clone_nixpkgs() -> Repository {
+pub(crate) fn clone_nixpkgs() -> Repository {
     info!("Starting nixpkgs clone!");
     RepoBuilder::new()
         .fetch_options(clone_options())
