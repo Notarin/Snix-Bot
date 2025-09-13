@@ -29,8 +29,11 @@ impl NixpkgsIo {
 
 impl EvalIO for NixpkgsIo {
     fn path_exists(&self, path: &Path) -> io::Result<bool> {
-        let path = Self::ensure_inside(path)?;
-        Ok(path.exists())
+        let exists = match Self::ensure_inside(path) {
+            Ok(path) => path.exists(),
+            Err(_) => false,
+        };
+        Ok(exists)
     }
 
     fn open(&self, path: &Path) -> io::Result<Box<dyn Read>> {
