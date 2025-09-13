@@ -111,13 +111,10 @@ async fn eval_discord_expression(
                     .collect::<Result<Vec<_>, Error>>()?;
                 let evaluated_list: Vec<String> = evaluated_list
                     .into_iter()
-                    .map(|entry| {
-                        let name = format!("**{}:**", entry.0);
-                        let code_block = make_code_block(format(entry.1));
-                        format!("{}\n{}", name, code_block)
-                    })
+                    .map(|entry| format!("  {} = {};", entry.0, entry.1))
                     .collect();
-                evaluated_list.join("\n")
+                let attr_set = format!("{{\n{}\n}}", evaluated_list.join("\n"));
+                make_code_block(format(attr_set))
             }
         }
     };
