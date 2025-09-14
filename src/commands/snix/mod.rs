@@ -1,4 +1,5 @@
 use crate::Error;
+use log::error;
 use poise::serenity_prelude::CreateEmbed;
 use snix_eval::{EvaluationResult, Value};
 use std::iter::Map;
@@ -11,8 +12,10 @@ pub(crate) fn check_value_for_errors(wrapped_result: EvaluationResult) -> Result
     match (wrapped_result.value, wrapped_result.errors.as_slice()) {
         (Some(result), _) => Ok(result),
         (None, errors @ [_, ..]) => {
-            let serialized_errors: Vec<String> =
-                Map::collect(errors.iter().map(|error| error.fancy_format_str()));
+            let serialized_errors: Vec<String> = Map::collect(errors.iter().map(|error| {
+                error!("{}", error);
+                error.fancy_format_str()
+            }));
             let mono_error = format!("```\n{}\n```", serialized_errors.join("\n"));
             Err(Error::from(mono_error))
         }

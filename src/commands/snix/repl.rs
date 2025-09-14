@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::commands::snix;
+use crate::commands::snix::check_value_for_errors;
 use crate::commands::snix::io::NixpkgsIo;
 use crate::nixpkgs::NixpkgsPath;
 use poise::futures_util::future::join_all;
@@ -7,7 +7,8 @@ use poise::serenity_prelude::Message;
 use poise::{Context, command};
 use regex::{Captures, Regex};
 use rustc_hash::FxHashMap;
-use snix_eval::{Evaluation, EvaluationResult};
+use snix_eval::{EvalMode, GlobalsMap, Value};
+use std::rc::Rc;
 use tokio::time::{Duration, timeout};
 
 #[command(
@@ -138,42 +139,69 @@ async fn evaluate_expression(expression: String) -> Result<String, Error> {
     let output: Result<String, Error> = timeout(
         eval_timeout,
         tokio::task::spawn_blocking(move || {
-            let super_builder = snix_eval::Evaluation::builder_pure()
-                .mode(snix_eval::EvalMode::Lazy)
-                .enable_import()
-                .enable_impure(Some(Box::new(NixpkgsIo)))
-                .build();
-            let base_globals = super_builder.globals();
-
-            let global_builder = |expression: &str| {
-                Evaluation::evaluate(
-                    snix_eval::Evaluation::builder_impure()
-                        .mode(snix_eval::EvalMode::Lazy)
-                        .with_globals(base_globals.clone())
-                        .build(),
-                    expression,
-                    Some(NixpkgsPath.as_path().into()),
-                )
-                .value
-                .unwrap()
+            let evaluator = |expression: &str,
+                             globals: Option<Rc<GlobalsMap>>,
+                             env: &FxHashMap<_, Value>,
+                             mode: EvalMode| {
+                let mut builder = snix_eval::Evaluation::builder_impure()
+                    .mode(mode)
+                    .env(Some(env));
+                match globals {
+                    None => {
+                        let global_builder = |expression| {
+                            check_value_for_errors(
+                                snix_eval::Evaluation::builder_pure()
+                                    .build()
+                                    .evaluate(expression, None),
+                            )
+                        };
+                        let derivation =
+                            global_builder("arg: arg // {out={type=null;outputName=null;};}")?;
+                        let placeholder = global_builder("arg: arg")?;
+                        builder = builder.enable_import();
+                        builder = builder.add_builtins(vec![
+                            ("derivation", derivation),
+                            ("placeholder", placeholder),
+                        ]);
+                        builder = builder.io_handle(Box::new(NixpkgsIo));
+                    }
+                    Some(globals) => {
+                        builder = builder.with_globals(globals);
+                        builder = builder.io_handle(Box::new(NixpkgsIo));
+                    }
+                }
+                let evaluator = builder.build();
+                let globals = Rc::clone(&evaluator.globals());
+                let result = check_value_for_errors(
+                    evaluator.evaluate(expression, Some(NixpkgsPath.as_path().into())),
+                )?;
+                Ok::<(Value, Rc<GlobalsMap>), Error>((result, globals))
             };
-            let derivation = global_builder("arg: arg // {out={type=null;outputName=null;};}");
-            let placeholder = global_builder("arg: arg");
-            let lib = global_builder("import ./lib");
             let mut fx_hash_map: FxHashMap<_, _> = FxHashMap::default();
-            fx_hash_map.insert("derivation".into(), derivation);
-            fx_hash_map.insert("placeholder".into(), placeholder);
-            fx_hash_map.insert("lib".into(), lib);
-            let builder = snix_eval::Evaluation::builder_pure()
-                .mode(snix_eval::EvalMode::Strict)
-                .env(Some(&fx_hash_map))
-                .enable_impure(Some(Box::new(NixpkgsIo)));
+            let lib = evaluator("import ./lib", None, &fx_hash_map, EvalMode::Lazy)?;
+            fx_hash_map.insert("lib".into(), lib.0);
+            let globals = lib.1;
+            #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+            const SYSTEM: &str = "x86_64-linux";
+            let pkgs = evaluator(
+                &format!(
+                    "import ./pkgs/top-level/default.nix {{localSystem = \"{}\";}}",
+                    SYSTEM
+                ),
+                Some(Rc::clone(&globals)),
+                &fx_hash_map,
+                EvalMode::Lazy,
+            )?;
+            fx_hash_map.insert("pkgs".into(), pkgs.0);
 
-            let evaluation = builder.build();
-            let result: EvaluationResult =
-                Evaluation::evaluate(evaluation, expression, Some(NixpkgsPath.as_path().into()));
+            let result = evaluator(
+                &expression,
+                Some(Rc::clone(&globals)),
+                &fx_hash_map,
+                EvalMode::Strict,
+            )?;
 
-            Ok(format!("{}", snix::check_value_for_errors(result)?))
+            Ok(format!("{}", result.0))
         }),
     )
     .await
@@ -182,7 +210,6 @@ async fn evaluate_expression(expression: String) -> Result<String, Error> {
             "Evaluation took too long. Max eval time is {} seconds.",
             eval_timeout.as_secs()
         )
-    })?
-    .unwrap();
+    })??;
     output
 }
