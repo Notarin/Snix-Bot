@@ -6,6 +6,7 @@ use poise::futures_util::future::join_all;
 use poise::serenity_prelude::Message;
 use poise::{Context, command};
 use regex::{Captures, Regex};
+use rustc_hash::FxHashMap;
 use snix_eval::{Evaluation, EvaluationResult};
 use tokio::time::{Duration, timeout};
 
@@ -137,39 +138,35 @@ async fn evaluate_expression(expression: String) -> Result<String, Error> {
     let output: Result<String, Error> = timeout(
         eval_timeout,
         tokio::task::spawn_blocking(move || {
-            let mode = snix_eval::EvalMode::Strict;
-
-            let fake_derivation_builder = Evaluation::evaluate(
-                snix_eval::Evaluation::builder_pure()
-                    .mode(mode)
-                    .enable_import()
-                    .enable_impure(Some(Box::new(NixpkgsIo)))
-                    .build(),
-                "arg: arg // {out={type=null;outputName=null;};}",
-                Some(NixpkgsPath.as_path().into()),
-            )
-            .value
-            .unwrap();
-
-            let fake_placeholder = Evaluation::evaluate(
-                snix_eval::Evaluation::builder_pure()
-                    .mode(mode)
-                    .enable_import()
-                    .enable_impure(Some(Box::new(NixpkgsIo)))
-                    .build(),
-                "arg: arg",
-                Some(NixpkgsPath.as_path().into()),
-            )
-            .value
-            .unwrap();
-
-            let builder = snix_eval::Evaluation::builder_pure()
-                .mode(mode)
+            let super_builder = snix_eval::Evaluation::builder_pure()
+                .mode(snix_eval::EvalMode::Lazy)
                 .enable_import()
-                .add_builtins(vec![
-                    ("derivation", fake_derivation_builder),
-                    ("placeholder", fake_placeholder),
-                ])
+                .enable_impure(Some(Box::new(NixpkgsIo)))
+                .build();
+            let base_globals = super_builder.globals();
+
+            let global_builder = |expression: &str| {
+                Evaluation::evaluate(
+                    snix_eval::Evaluation::builder_impure()
+                        .mode(snix_eval::EvalMode::Lazy)
+                        .with_globals(base_globals.clone())
+                        .build(),
+                    expression,
+                    Some(NixpkgsPath.as_path().into()),
+                )
+                .value
+                .unwrap()
+            };
+            let derivation = global_builder("arg: arg // {out={type=null;outputName=null;};}");
+            let placeholder = global_builder("arg: arg");
+            let lib = global_builder("import ./lib");
+            let mut fx_hash_map: FxHashMap<_, _> = FxHashMap::default();
+            fx_hash_map.insert("derivation".into(), derivation);
+            fx_hash_map.insert("placeholder".into(), placeholder);
+            fx_hash_map.insert("lib".into(), lib);
+            let builder = snix_eval::Evaluation::builder_pure()
+                .mode(snix_eval::EvalMode::Strict)
+                .env(Some(&fx_hash_map))
                 .enable_impure(Some(Box::new(NixpkgsIo)));
 
             let evaluation = builder.build();
