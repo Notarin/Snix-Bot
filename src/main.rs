@@ -65,6 +65,7 @@ fn build_framework() -> Framework<(), Error> {
         commands::snix::maintainer::maintainer(),
         commands::nixpkgs_pull(),
         commands::snix::repl::eval_code_block(),
+        commands::noogle(),
     ];
     trace!("Building bot framework.");
     let framework_options = FrameworkOptions {

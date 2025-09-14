@@ -65,3 +65,23 @@ pub(crate) async fn nixpkgs_pull(ctx: Context<'_, (), Error>) -> Result<(), Erro
     ctx.say("Nixpkgs updated to upstream tip.").await?;
     Ok(())
 }
+
+#[command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
+pub(crate) async fn noogle(ctx: Context<'_, (), Error>, function: String) -> Result<(), Error> {
+    let function = function.trim().replace(" ", "").replace(".", "/");
+    let url = format!("https://noogle.dev/f/{}", function);
+
+    let resp = reqwest::get(&url).await.map_err(|_| "Error!".to_string())?;
+    if resp.status().is_success() {
+        ctx.say(&url).await?;
+        Ok(())
+    } else if resp.status().as_u16() == 404 {
+        Err(Error::from("Function doesn't exist on Noogle!"))
+    } else {
+        panic!("Unexpected response!")
+    }
+}
