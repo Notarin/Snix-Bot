@@ -13,6 +13,7 @@ use poise::{Command, Framework, serenity_prelude as serenity};
 use serenity::prelude::*;
 use std::error;
 
+type Context<'a> = poise::FrameworkContext<'a, (), Error>;
 type Error = Box<dyn error::Error + Send + Sync>;
 
 #[tokio::main]
@@ -70,9 +71,7 @@ fn build_framework() -> Framework<(), Error> {
     trace!("Building bot framework.");
     let framework_options = FrameworkOptions {
         commands,
-        event_handler: |ctx, event, framework, _data| {
-            Box::pin(events::event_handler(ctx, event, framework))
-        },
+        event_handler: |framework, event| Box::pin(events::event_handler(framework, event)),
         on_error: error,
         ..Default::default()
     };

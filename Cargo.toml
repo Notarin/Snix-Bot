@@ -10,7 +10,7 @@ lazy_static = "1.5.0"
 git2 = "0.20.2"
 openapi-github = "0.1.0"
 bytes = "1.10.1"
-poise = {git = "https://github.com/serenity-rs/poise.git"}
+poise = {git = "https://github.com/serenity-rs/poise.git", rev = "7f265e554a9a90068ea4df5dc502f38255bc0d59"}
 regex = "1.11.2"
 rustc-hash = "2.1.1"
 reqwest = "0.11.27"

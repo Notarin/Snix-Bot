@@ -5,16 +5,15 @@ use crate::nixpkgs::{NixpkgsPath, NixpkgsRepo};
 use openapi_github::apis::configuration::Configuration;
 use openapi_github::apis::users_api::users_slash_get_by_username;
 use openapi_github::models::UsersGetAuthenticated200Response;
-use poise::futures_util::{Stream, StreamExt};
-use poise::serenity_prelude::{Color, CreateEmbed, futures};
+use poise::serenity_prelude::{AutocompleteChoice, Color, CreateAutocompleteResponse, CreateEmbed};
 use poise::{Context, CreateReply, command};
 use snix_eval::{Evaluation, EvaluationResult, Value};
 use std::path::PathBuf;
 
-async fn autocomplete_maintainer<'a>(
+async fn autocomplete_maintainer(
     _ctx: Context<'_, (), Error>,
-    partial: &'a str,
-) -> impl Stream<Item = String> + 'a {
+    partial: &str,
+) -> CreateAutocompleteResponse {
     let mode = snix_eval::EvalMode::Strict;
     let builder = snix_eval::Evaluation::builder_pure()
         .mode(mode)
@@ -27,7 +26,7 @@ async fn autocomplete_maintainer<'a>(
         Some(NixpkgsPath.as_path().into()),
     );
 
-    let maintainers: Vec<String> = match snix::check_value_for_errors(result) {
+    let mut maintainers: Vec<String> = match snix::check_value_for_errors(result) {
         Ok(Value::Attrs(attrs)) => attrs
             .keys()
             .map(|maintainer| {
@@ -45,9 +44,16 @@ async fn autocomplete_maintainer<'a>(
         _ => Vec::new(),
     };
 
-    futures::stream::iter(maintainers)
-        .filter(move |maintainer: &String| futures::future::ready(maintainer.starts_with(partial)))
+    let maintainers: Vec<String> = maintainers
+        .iter_mut()
+        .filter(|maintainer| maintainer.starts_with(partial))
         .map(|name| name.to_string())
+        .collect::<Vec<String>>();
+    let choices = maintainers.iter().map(AutocompleteChoice::from).collect();
+
+    let mut autocomplete_response = CreateAutocompleteResponse::new();
+    autocomplete_response = autocomplete_response.set_choices(choices);
+    autocomplete_response
 }
 
 #[command(
