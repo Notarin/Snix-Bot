@@ -1,6 +1,6 @@
 use clap::Parser;
-use lazy_static::lazy_static;
 use log::LevelFilter;
+use std::sync::LazyLock;
 
 #[derive(Parser)]
 #[command(version, about, author)]
@@ -43,14 +43,7 @@ pub(crate) struct Args {
         default_value = "1",
         help = "Clone depth for the nixpkgs repo."
     )]
-    pub(crate) clone_depth: u32,
+    pub(crate) clone_depth: i32,
 }
 
-lazy_static! {
-    pub(crate) static ref ARGS: Args = {
-        // No logging takes place here as colog, our logging library, depends on these args,
-        // meaning we cannot possibly have logging ready.
-        // See the comment (which hopefully is there! XD) at the top of main() for more info.
-        Args::parse()
-    };
-}
+pub(crate) static ARGS: LazyLock<Args> = LazyLock::new(Args::parse);

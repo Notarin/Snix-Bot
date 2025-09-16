@@ -1,3 +1,4 @@
+#![deny(clippy::all, clippy::pedantic)]
 mod args;
 mod commands;
 mod events;
@@ -6,7 +7,7 @@ use args::ARGS;
 use log::{debug, error, info, trace};
 mod nixpkgs;
 
-use crate::nixpkgs::{NixpkgsRepo, nixpkgs_repo};
+use crate::nixpkgs::{NIXPKGS_REPO, nixpkgs_repo};
 use poise::serenity_prelude::{Client, Color, CreateEmbed};
 use poise::{BoxFuture, CreateReply, FrameworkError, FrameworkOptions};
 use poise::{Command, Framework, serenity_prelude as serenity};
@@ -26,7 +27,7 @@ async fn main() {
 
     // Let's go ahead and spawn a thread to clone nixpkgs, it will take a minute.
     tokio::spawn(async move {
-        let mut nixpkgs = NixpkgsRepo.lock().await;
+        let mut nixpkgs = NIXPKGS_REPO.lock().await;
         let repository = nixpkgs_repo();
         info!("Nixpkgs is ready at: {}", repository.path().display());
         *nixpkgs = Some(repository);
@@ -38,7 +39,7 @@ async fn main() {
     info!("Client has shut down, finishing up.");
     match result {
         Ok(()) => {
-            info!("Client undergoing graceful shutdown.")
+            info!("Client undergoing graceful shutdown.");
         }
         Err(error) => {
             error!("Client error causing full panic: {error:?}");

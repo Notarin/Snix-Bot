@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::nixpkgs::NixpkgsRepo;
+use crate::nixpkgs::NIXPKGS_REPO;
 use poise::{Context, command};
 
 pub(crate) mod snix;
@@ -23,7 +23,7 @@ pub(crate) async fn ping(ctx: Context<'_, (), Error>) -> Result<(), Error> {
 pub(crate) async fn nixpkgs_pull(ctx: Context<'_, (), Error>) -> Result<(), Error> {
     // This can be expensive, so defer the interaction.
     ctx.defer().await?;
-    let guard = NixpkgsRepo.lock().await;
+    let guard = NIXPKGS_REPO.lock().await;
 
     guard
         .as_ref()
@@ -72,8 +72,8 @@ pub(crate) async fn nixpkgs_pull(ctx: Context<'_, (), Error>) -> Result<(), Erro
     interaction_context = "Guild|BotDm|PrivateChannel"
 )]
 pub(crate) async fn noogle(ctx: Context<'_, (), Error>, function: String) -> Result<(), Error> {
-    let function = function.trim().replace(" ", "").replace(".", "/");
-    let url = format!("https://noogle.dev/f/{}", function);
+    let function = function.trim().replace(' ', "").replace('.', "/");
+    let url = format!("https://noogle.dev/f/{function}");
 
     let resp = reqwest::get(&url).await.map_err(|_| "Error!".to_string())?;
     if resp.status().is_success() {

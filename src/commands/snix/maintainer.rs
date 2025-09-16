@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::commands::snix;
 use crate::commands::snix::io::NixpkgsIo;
-use crate::nixpkgs::{NixpkgsPath, NixpkgsRepo};
+use crate::nixpkgs::{NIXPKGS_PATH, NIXPKGS_REPO};
 use openapi_github::apis::configuration::Configuration;
 use openapi_github::apis::users_api::users_slash_get_by_username;
 use openapi_github::models::UsersGetAuthenticated200Response;
@@ -10,6 +10,7 @@ use poise::{Context, CreateReply, command};
 use snix_eval::{Evaluation, EvaluationResult, Value};
 use std::path::PathBuf;
 
+#[allow(clippy::unused_async)]
 async fn autocomplete_maintainer(
     _ctx: Context<'_, (), Error>,
     partial: &str,
@@ -23,7 +24,7 @@ async fn autocomplete_maintainer(
     let result: EvaluationResult = Evaluation::evaluate(
         evaluation,
         "(import ./lib).maintainers",
-        Some(NixpkgsPath.as_path().into()),
+        Some(NIXPKGS_PATH.as_path().into()),
     );
 
     let mut maintainers: Vec<String> = match snix::check_value_for_errors(result) {
@@ -47,7 +48,7 @@ async fn autocomplete_maintainer(
     let maintainers: Vec<String> = maintainers
         .iter_mut()
         .filter(|maintainer| maintainer.starts_with(partial))
-        .map(|name| name.to_string())
+        .map(|name| (*name).to_string())
         .collect::<Vec<String>>();
     let choices = maintainers.iter().map(AutocompleteChoice::from).collect();
 
@@ -67,7 +68,7 @@ pub(crate) async fn maintainer(
     #[description = "Maintainer Name/Handle"]
     name: String,
 ) -> Result<(), Error> {
-    let nixpkgs_repo = NixpkgsRepo
+    let nixpkgs_repo = NIXPKGS_REPO
         .try_lock()
         .map_err(|_| "The nixpkgs repo is currently in use elsewhere. Try again later.")?;
     // We're gonna use this later for the embed image
@@ -77,7 +78,7 @@ pub(crate) async fn maintainer(
         .map(|nixpkgs| {
             let nixpkgs_root = nixpkgs.path().parent().unwrap();
             let maintainer_expression =
-                format!("(import ./maintainers/maintainer-list.nix).{}", name);
+                format!("(import ./maintainers/maintainer-list.nix).{name}");
             let mode = snix_eval::EvalMode::Strict;
             let builder = snix_eval::Evaluation::builder_pure()
                 .mode(mode)
@@ -94,10 +95,10 @@ pub(crate) async fn maintainer(
 
             // Set the github username for later use
             if let Some(username_value) = maintainer.select("github") {
-                let quoted_username = format!("{}", username_value);
+                let quoted_username = format!("{username_value}");
                 let username = &quoted_username[1..&quoted_username.len() - 1];
                 github_username = Some(String::from(username));
-            };
+            }
 
             let mut embed: CreateEmbed = CreateEmbed::new()
                 .title("Maintainer Info")
@@ -129,8 +130,8 @@ pub(crate) async fn maintainer(
     Ok(())
 }
 
-pub fn format_field_value(string: String) -> String {
-    let mut inner: &str = &string;
+pub fn format_field_value(string: &str) -> String {
+    let mut inner: &str = string;
 
     if inner.starts_with('"') {
         inner = &inner[1..];
@@ -139,5 +140,5 @@ pub fn format_field_value(string: String) -> String {
         inner = &inner[..inner.len() - 1];
     }
 
-    format!("`{}`", inner)
+    format!("`{inner}`")
 }

@@ -12,7 +12,7 @@ pub(crate) fn check_value_for_errors(wrapped_result: EvaluationResult) -> Result
         (Some(result), _) => Ok(result),
         (None, errors @ [_, ..]) => {
             let serialized_errors: Vec<String> =
-                Map::collect(errors.iter().map(|error| error.fancy_format_str()));
+                Map::collect(errors.iter().map(snix_eval::Error::fancy_format_str));
             let mono_error = format!("```\n{}\n```", serialized_errors.join("\n"));
             Err(Error::from(mono_error))
         }
@@ -30,7 +30,7 @@ pub(crate) fn add_embed_field(
     if let Some(value) = value {
         embed = embed.field(
             name,
-            maintainer::format_field_value(format!("{}", value)),
+            maintainer::format_field_value(&format!("{value}")),
             false,
         );
     }

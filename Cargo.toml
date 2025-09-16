@@ -6,7 +6,6 @@ log = "0.4.28"
 snix-eval = {git = "https://git.snix.dev/snix/snix.git", version = "0.1.0"}
 alejandra = {git = "https://github.com/kamadorueda/alejandra.git", version = "4.0.0"}
 tempfile = "3.21.0"
-lazy_static = "1.5.0"
 git2 = "0.20.2"
 openapi-github = "0.1.0"
 bytes = "1.10.1"

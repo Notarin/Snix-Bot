@@ -1,4 +1,4 @@
-use crate::nixpkgs::NixpkgsPath;
+use crate::nixpkgs::NIXPKGS_PATH;
 use bytes::Bytes;
 use snix_eval::{EvalIO, FileType};
 use std::ffi::{OsStr, OsString};
@@ -14,13 +14,16 @@ impl NixpkgsIo {
         let abs = if path.is_absolute() {
             path.to_path_buf()
         } else {
-            NixpkgsPath.join(path)
+            NIXPKGS_PATH.join(path)
         };
         let canon = abs.canonicalize()?;
-        if !canon.starts_with(&*NixpkgsPath) {
+        if !canon.starts_with(&*NIXPKGS_PATH) {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
-                format!("Path {:?} is outside nixpkgs root", canon),
+                format!(
+                    "Path {:?} is outside nixpkgs root",
+                    canon.to_str().or(Some("???"))
+                ),
             ));
         }
         Ok(canon)

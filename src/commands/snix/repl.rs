@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::commands::snix::check_value_for_errors;
 use crate::commands::snix::io::NixpkgsIo;
-use crate::nixpkgs::NixpkgsPath;
+use crate::nixpkgs::NIXPKGS_PATH;
 use poise::futures_util::future::join_all;
 use poise::serenity_prelude::Message;
 use poise::{Context, command};
@@ -99,7 +99,7 @@ async fn eval_discord_expression(
             ToEvaluateType::Expression(expression) => {
                 let output = evaluate_expression(expression).await?;
                 let formatted = format(output);
-                make_code_block(formatted)
+                make_code_block(&formatted)
             }
             ToEvaluateType::Assignment(assignments) => {
                 let evaluated_list: Vec<(String, String)> =
@@ -116,7 +116,7 @@ async fn eval_discord_expression(
                     .map(|entry| format!("  {} = {};", entry.0, entry.1))
                     .collect();
                 let attr_set = format!("{{\n{}\n}}", evaluated_list.join("\n"));
-                make_code_block(format(attr_set))
+                make_code_block(&format(attr_set))
             }
         }
     };
@@ -124,15 +124,18 @@ async fn eval_discord_expression(
     Ok(())
 }
 
-fn make_code_block(string: String) -> String {
-    let code_block_response: String = format!("```nix\n{}\n```", string);
+fn make_code_block(string: &str) -> String {
+    let code_block_response: String = format!("```nix\n{string}\n```");
     code_block_response
 }
 
 fn format(nix: String) -> String {
     let fmt_config = alejandra::config::Config::default();
-    alejandra::format::in_memory(String::from(""), nix, fmt_config).1
+    alejandra::format::in_memory(String::new(), nix, fmt_config).1
 }
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+const SYSTEM: &str = "x86_64-linux";
 
 async fn evaluate_expression(expression: String) -> Result<String, Error> {
     let eval_timeout: Duration = Duration::from_secs(2);
@@ -173,7 +176,7 @@ async fn evaluate_expression(expression: String) -> Result<String, Error> {
                 let evaluator = builder.build();
                 let globals = Rc::clone(&evaluator.globals());
                 let result = check_value_for_errors(
-                    evaluator.evaluate(expression, Some(NixpkgsPath.as_path().into())),
+                    evaluator.evaluate(expression, Some(NIXPKGS_PATH.as_path().into())),
                 )?;
                 Ok::<(Value, Rc<GlobalsMap>), Error>((result, globals))
             };
@@ -181,13 +184,8 @@ async fn evaluate_expression(expression: String) -> Result<String, Error> {
             let lib = evaluator("import ./lib", None, &fx_hash_map, EvalMode::Lazy)?;
             fx_hash_map.insert("lib".into(), lib.0);
             let globals = lib.1;
-            #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-            const SYSTEM: &str = "x86_64-linux";
             let pkgs = evaluator(
-                &format!(
-                    "import ./pkgs/top-level/default.nix {{localSystem = \"{}\";}}",
-                    SYSTEM
-                ),
+                &format!("import ./pkgs/top-level/default.nix {{localSystem = \"{SYSTEM}\";}}"),
                 Some(Rc::clone(&globals)),
                 &fx_hash_map,
                 EvalMode::Lazy,
